@@ -59,6 +59,8 @@ int main(int argc, char **argv) {
 
 	// quick and very dirty string build, fix this later
 	/* Explanation of sox options:
+	 * -S: show progress during conversion
+	 * -V3: print verbose info
 	 * -t raw: don't output description header, as in wav or au
 	 * -r freq: encode to requested frequency
 	 * NOTE: gba audio requires signed 8-bit PCM format
@@ -67,7 +69,7 @@ int main(int argc, char **argv) {
 	 * -c 1: downmix to mono; maybe change this later
 	 */
 	char command[1024];
-	sprintf(command, "sox '%s' -t raw -r %i -e signed -b 8 -c 1 -",
+	sprintf(command, "sox '%s' -S -V3 -t raw -r %i -e signed -b 8 -c 1 -",
 			argv[optind], freq);
 
 	// start sox and open our output file
