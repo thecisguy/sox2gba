@@ -29,23 +29,23 @@
 #define NAME_LEN 50
 
 int main(int argc, char **argv) {
-	FILE *header = NULL;
-	char name[NAME_LEN+1] = "output";
-	int freq = 16000;
+	FILE *header = NULL; // header file to write, NULL for none
+	char name[NAME_LEN+1] = "output"; // default object name
+	int freq = 16000; // frequency of output audio, default is 16000Hz
 
 	int option;
 	while ((option = getopt(argc, argv, "h:n:f:")) != -1) {
 		switch (option) {
-		case 'h':
+		case 'h': // header file path
 			header = fopen(optarg, "w");
 			break;
 
-		case 'n':
+		case 'n': // object name
 			strncpy(name, optarg, NAME_LEN);
 			name[NAME_LEN] = '\0'; // ensure null-termination
 			break;
 
-		case 'f':
+		case 'f': // audio frequency
 			freq = atoi(optarg);
 			break;
 
@@ -58,13 +58,47 @@ int main(int argc, char **argv) {
 	}
 
 	// quick and very dirty string build, fix this later
+	/* Explanation of sox options:
+	 * -t raw: don't output description header, as in wav or au
+	 * -r freq: encode to requested frequency
+	 * NOTE: gba audio requires signed 8-bit PCM format
+	 * -e signed: use signed integers
+	 * -b 8: use 8-bit integers
+	 * -c 1: downmix to mono; maybe change this later
+	 */
 	char command[1024];
 	sprintf(command, "sox '%s' -t raw -r %i -e signed -b 8 -c 1 -",
 			argv[optind], freq);
 
+	// start sox and open our output file
 	FILE *sox = popen(command, "r");
 	FILE *out = fopen(argv[optind+1], "w");
 
+	/* Why don't we use the WaveData declaration from <gba_sound.h>?
+	 *
+	 * That declaration uses "s8 data[1];" for the data parameter of
+	 * the sound. This is an archaic technique for creating a variable-
+	 * length structure, where the size for the structure itself is
+	 * allocated to the actual required size. The declaration that appears
+	 * here is allocated the same way, but the omission of the array size
+	 * is a C99 standards-conforming way of achieving the same thing.
+	 *
+	 * Doing it this way is not only standard-conforming, but also makes
+	 * it much easier to write out the entire sound in a const literal
+	 * in a single pass. With the "s8 data[1];" declaration, compilers
+	 * are not likely to compile the structure defined in the output file.
+	 * The gcc that ships with devkitpro, for example, (correctly) determines
+	 * that all bytes past the first one in .data are in excess of the
+	 * declared size of the array (1), and discards them. With our
+	 * declaration, gcc understands that the structure is intended to
+	 * be variable-length, and correctly puts all the bytes in the structure.
+	 *
+	 * This declaration of WaveData is 100% compatible with the one from
+	 * <gba_sound.h>, and the header file created, if any, does in fact
+	 * declare the created object as though it were a WaveData as that
+	 * file defines it.
+	 *
+	 */
 	fprintf(out, "#include <gba_base.h>\n"
 				 "\n"
 				 "typedef struct {\n"
@@ -85,6 +119,9 @@ int main(int argc, char **argv) {
 				 name, freq
 			);
 
+	// now we read the output of sox and write it to our file
+	// it's been running for some time now, so we should have
+	// bytes to read
 	uint32_t samples = 0;
 	int printed = 0;
 	int c;
@@ -106,6 +143,7 @@ int main(int argc, char **argv) {
 	fclose(out);
 
 	if (header) {
+		// write header file if one was requested, then close it
 		fprintf(header,
 				"#ifndef %s_H\n"
 				"#define %s_H\n"
