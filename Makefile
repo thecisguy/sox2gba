@@ -20,7 +20,7 @@
 
 CC=gcc
 CFLAGS = -std=c11 -pg -pipe -ggdb -Wall -fdiagnostics-color=auto \
-	     -march=native -Og -D_GNU_SOURCE
+	     -march=native -Og -D_GNU_SOURCE -U__STRICT_ANSI__
 LDFLAGS = 
 
 default: sox2gba
